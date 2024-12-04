@@ -80,7 +80,7 @@ $data = $sheet->toArray(null, true, true, true);
         
         <!-- Download Button -->
         <div class="d-flex justify-content-center gap-3">
-    <a href="/mnumber/" class="btn btn-primary">Kembali ke Menu Utama</a>
+    <a href="index.html" class="btn btn-primary">Kembali ke Menu Utama</a>
     <a href="processed_files/<?php echo basename($filePath); ?>" class="btn btn-success" download>Download Processed File</a>
 </div>
 
