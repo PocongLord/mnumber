@@ -46,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     $spreadsheet = IOFactory::load($file);
     $sheet = $spreadsheet->getActiveSheet();
 
+    // Iterasi melalui semua baris (mulai dari baris kedua)
     foreach ($sheet->getRowIterator(2) as $row) {
         $rowIndex = $row->getRowIndex();
         $cellC = strtoupper($sheet->getCell('C' . $rowIndex)->getValue() ?? '');
@@ -53,8 +54,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
         if (empty($cellC) || empty($cellE)) {
             continue;
         }
+
+        // Generate material number
         $materialNumber = generateMaterialNumber($cellC, $cellE);
-        $sheet->setCellValue('D' . $rowIndex, $materialNumber);
+        $sheet->setCellValue('D' . $rowIndex, strtoupper($materialNumber));
+
+        // Ubah seluruh kolom di baris menjadi huruf kapital
+        foreach (range('A', $sheet->getHighestColumn()) as $col) {
+            $value = $sheet->getCell($col . $rowIndex)->getValue();
+            $sheet->setCellValue($col . $rowIndex, strtoupper($value ?? ''));
+        }
     }
 
     // Simpan file hasil proses

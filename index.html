@@ -64,9 +64,10 @@
             </div>
 
             <!-- Download Button -->
-            <div id="downloadContainer" class="mt-4 text-center" style="display: none;">
-                <a id="downloadLink" href="#" class="btn btn-success">Download Hasil Generate Material Number</a>
-            </div>
+<div id="downloadContainer" class="mt-4 text-center" style="display: none;">
+    <a id="downloadLink" href="#" class="btn btn-success">Download Hasil Generate Material Number</a>
+    <a id="viewDataLink" href="#" class="btn btn-info">Lihat Data</a>
+</div>
         </div>
 
         <footer class="text-center mt-4">
@@ -98,19 +99,22 @@
             });
 
             // Handle response
-            xhr.onload = function () {
-                if (xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
-                    const downloadLink = document.getElementById('downloadLink');
-                    const downloadContainer = document.getElementById('downloadContainer');
+xhr.onload = function () {
+    if (xhr.status === 200) {
+        const response = JSON.parse(xhr.responseText);
+        const downloadLink = document.getElementById('downloadLink');
+        const viewDataLink = document.getElementById('viewDataLink');
+        const downloadContainer = document.getElementById('downloadContainer');
 
-                    // Set download URL and show button
-                    downloadLink.href = response.file_url;
-                    downloadContainer.style.display = 'block';
-                } else {
-                    alert('An error occurred while processing the file.');
-                }
-            };
+        // Set download URL and show buttons
+        downloadLink.href = response.file_url;
+        viewDataLink.href = `view_data.php?file=${encodeURIComponent(response.file_url)}`;
+        downloadContainer.style.display = 'block';
+    } else {
+        alert('An error occurred while processing the file.');
+    }
+};
+
 
             // Send the request
             xhr.send(formData);
