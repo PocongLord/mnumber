@@ -23,6 +23,14 @@
         .btn-primary:hover {
             background-color: #025ce2;
         }
+        .btn-orange {
+            background-color: #ff7f00; /* Warna orange */
+            border: none;
+            color: white; /* Warna tulisan putih */
+        }
+        .btn-orange:hover {
+            background-color: #e67000; /* Warna orange saat hover */
+        }
         .progress-container {
             display: none;
         }
@@ -32,20 +40,24 @@
     <div class="container">
         <div class="text-center mb-4">
             <h1 class="display-6">Material Number Generator</h1>
-            <p class="text-muted">Upload your Excel file to generate material numbers automatically.</p>
+            <p class="text-muted">Upload material number yang sudah disesuaikan dengan template, jika belum ada template silahkan download template dibawah ini</p>
+
+            <!-- Button to download the template with orange color -->
+            <a href="template mnumber/template_mnumber.xlsx" class="btn btn-orange mb-4" download>Download Template</a>
         </div>
+
         <div class="card p-4">
             <form id="uploadForm" action="excel_upload.php" method="POST" enctype="multipart/form-data">
                 <div class="mb-3">
-                    <label for="file" class="form-label">Upload Excel File</label>
+                    <label for="file" class="form-label">Upload Template</label>
                     <input type="file" class="form-control" id="file" name="file" accept=".xlsx" required>
                 </div>
-                <button type="submit" class="btn btn-primary w-100">Upload and Process</button>
+                <button type="submit" class="btn btn-primary w-100">Upload and Proses</button>
             </form>
 
             <!-- Progress Bar -->
             <div class="progress-container mt-4">
-                <p class="text-center text-muted">Processing...</p>
+                <p class="text-center text-muted">Uploading...</p>
                 <div class="progress">
                     <div class="progress-bar" role="progressbar" style="width: 0%;" id="progressBar"></div>
                 </div>
@@ -53,7 +65,7 @@
 
             <!-- Download Button -->
             <div id="downloadContainer" class="mt-4 text-center" style="display: none;">
-                <a id="downloadLink" href="#" class="btn btn-success">Download Processed File</a>
+                <a id="downloadLink" href="#" class="btn btn-success">Download Hasil Generate Material Number</a>
             </div>
         </div>
 
@@ -65,45 +77,44 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.getElementById('uploadForm').addEventListener('submit', function (e) {
-    e.preventDefault();
+            e.preventDefault();
 
-    // Show the progress bar
-    document.querySelector('.progress-container').style.display = 'block';
+            // Show the progress bar
+            document.querySelector('.progress-container').style.display = 'block';
 
-    const progressBar = document.getElementById('progressBar');
-    const formData = new FormData(this);
-    const xhr = new XMLHttpRequest();
+            const progressBar = document.getElementById('progressBar');
+            const formData = new FormData(this);
+            const xhr = new XMLHttpRequest();
 
-    xhr.open('POST', this.action, true);
+            xhr.open('POST', this.action, true);
 
-    // Update progress bar
-    xhr.upload.addEventListener('progress', function (e) {
-        if (e.lengthComputable) {
-            const percentComplete = Math.round((e.loaded / e.total) * 100);
-            progressBar.style.width = percentComplete + '%';
-            progressBar.textContent = percentComplete + '%';
-        }
-    });
+            // Update progress bar
+            xhr.upload.addEventListener('progress', function (e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressBar.textContent = percentComplete + '%';
+                }
+            });
 
-    // Handle response
-    xhr.onload = function () {
-        if (xhr.status === 200) {
-            const response = JSON.parse(xhr.responseText);
-            const downloadLink = document.getElementById('downloadLink');
-            const downloadContainer = document.getElementById('downloadContainer');
+            // Handle response
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    const downloadLink = document.getElementById('downloadLink');
+                    const downloadContainer = document.getElementById('downloadContainer');
 
-            // Set download URL and show button
-            downloadLink.href = response.file_url;
-            downloadContainer.style.display = 'block';
-        } else {
-            alert('An error occurred while processing the file.');
-        }
-    };
+                    // Set download URL and show button
+                    downloadLink.href = response.file_url;
+                    downloadContainer.style.display = 'block';
+                } else {
+                    alert('An error occurred while processing the file.');
+                }
+            };
 
-    // Send the request
-    xhr.send(formData);
-});
-
+            // Send the request
+            xhr.send(formData);
+        });
     </script>
 </body>
 </html>

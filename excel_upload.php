@@ -5,6 +5,9 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
+// Atur zona waktu ke waktu lokal pengupload
+date_default_timezone_set('Asia/Jakarta'); // Ubah sesuai dengan zona waktu yang diinginkan
+
 // Fungsi untuk membuat Material Number
 function generateMaterialNumber($cellC, $cellE)
 {
@@ -60,7 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
         mkdir($outputDir, 0777, true);
     }
 
-    $newFileName = $outputDir . '/template-' . time() . '.xlsx';
+    // Ubah format nama file menjadi ddmmyyyyhhmm
+    $newFileName = $outputDir . '/template-' . date('dmyHi') . '.xlsx';
     $writer = new Xlsx($spreadsheet);
     $writer->save($newFileName);
 
@@ -68,6 +72,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     echo json_encode(['file_url' => $newFileName]);
     exit;
 }
-
-
 ?>
