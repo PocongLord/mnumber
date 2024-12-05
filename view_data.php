@@ -56,54 +56,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['insert_to_db'])) {
     $duplicateMnumbersMessage = '';
 
     // Loop untuk memasukkan data
-    foreach (array_slice($data, 1) as $row) {
-        if (empty(trim($row['A'] ?? ''))) continue; // Lewati baris kosong
-    
-        // Ambil data dari kolom yang sesuai
-        $manufaktur = $row['C'] ?? '';
-        $mnumber = $row['D'] ?? '';
-        $old_material_number = $row['E'] ?? '';
-        $material_description = $row['F'] ?? '';
-        $material_group = $row['G'] ?? '';
-        $external_material_group = $row['H'] ?? '';
-        $material_type = $row['I'] ?? '';
-        $uom = $row['J'] ?? '';
-        $comp_code = $row['K'] ?? '';
-        $keterangan = $row['L'] ?? ''; // Ambil data dari kolom L
+foreach (array_slice($data, 1) as $row) {
+    if (empty(trim($row['A'] ?? ''))) continue; // Lewati baris kosong
 
-        // Cek apakah mnumber sudah ada di database
-        $checkStmt = $conn->prepare("SELECT COUNT(*) FROM material WHERE mnumber = ?");
-        $checkStmt->bind_param('s', $mnumber);
-        $checkStmt->execute();
-        $checkStmt->bind_result($count);
-        $checkStmt->fetch();
-        $checkStmt->close();
+    // Ambil data dari kolom yang sesuai
+    $manufaktur = $row['C'] ?? '';
+    $mnumber = $row['D'] ?? '';
+    $old_material_number = $row['E'] ?? '';
+    $material_description = $row['F'] ?? '';
+    $material_group = $row['G'] ?? '';
+    $external_material_group = $row['H'] ?? '';
+    $material_type = $row['I'] ?? '';
+    $uom = $row['J'] ?? '';
+    $comp_code = $row['K'] ?? '';
+    $keterangan = $row['L'] ?? ''; // Ambil data dari kolom L
 
-        if ($count > 0) {
-            // Jika data sudah ada, simpan mnumber dan beri notifikasi
-            $duplicateMnumbers[] = $mnumber;
-            continue; // Lewati baris ini, tidak memasukkan ke database
-        }
-    
-        // Bind parameter
-        $stmt->bind_param(
-            'ssssssssss',
-            $manufaktur,
-            $mnumber,
-            $old_material_number,
-            $material_description,
-            $material_group,
-            $external_material_group,
-            $material_type,
-            $uom,
-            $comp_code,
-            $keterangan
-        );
-    
-        if (!$stmt->execute()) {
-            echo "Error inserting row: " . $stmt->error . "<br>";
-        }
+    // Cek apakah mnumber sudah ada di database
+    $checkStmt = $conn->prepare("SELECT COUNT(*) FROM material WHERE mnumber = ?");
+    $checkStmt->bind_param('s', $mnumber);
+    $checkStmt->execute();
+    $checkStmt->bind_result($count);
+    $checkStmt->fetch();
+    $checkStmt->close();
+
+    if ($count > 0) {
+        // Jika data sudah ada, simpan mnumber dan beri notifikasi
+        $duplicateMnumbers[] = $mnumber;
+        continue; // Lewati baris ini, tidak memasukkan ke database
     }
+
+    // Bind parameter untuk tabel material
+    $stmt->bind_param(
+        'ssssssssss',
+        $manufaktur,
+        $mnumber,
+        $old_material_number,
+        $material_description,
+        $material_group,
+        $external_material_group,
+        $material_type,
+        $uom,
+        $comp_code,
+        $keterangan
+    );
+
+    if (!$stmt->execute()) {
+        echo "Error inserting row: " . $stmt->error . "<br>";
+    } else {
+        // Jika berhasil memasukkan ke tabel material, masukkan ke tabel tab_create
+        $tabCreateStmt = $conn->prepare(
+            "INSERT INTO tab_create (basic, mnumber, industry_sector, material_type, material_description, uom, material_group, old_material_number, gross_weight, net_weight, weight_unit)
+            VALUES ('x', ?, 'Z', ?, ?, ?, ?, ?, NULL, NULL, 'KG')"
+        );
+
+        if (!$tabCreateStmt) {
+            echo "Prepare failed for tab_create: " . $conn->error . "<br>";
+            continue;
+        }
+        
+        $tabCreateStmt->bind_param(
+            'ssssss', // 6 parameter sesuai query
+            $mnumber,
+            $material_type,
+            $material_description,
+            $uom,
+            $material_group,
+            $old_material_number
+        );
+        
+        if (!$tabCreateStmt->execute()) {
+            echo "Error inserting into tab_create: " . $tabCreateStmt->error . "<br>";
+        }
+        
+        $tabCreateStmt->close();
+        
+    }
+}
+
     
     // Menampilkan notifikasi jika ada data duplikat
     if (count($duplicateMnumbers) > 0) {
