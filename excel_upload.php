@@ -46,6 +46,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     $spreadsheet = IOFactory::load($file);
     $sheet = $spreadsheet->getActiveSheet();
 
+    // Ubah header kolom D menjadi mnumber
+    $headerRowIndex = 1; // Baris header, biasanya baris pertama
+    foreach ($sheet->getRowIterator($headerRowIndex, $headerRowIndex) as $headerRow) {
+        $cellD = $sheet->getCell('D' . $headerRow->getRowIndex());
+        if (strtoupper($cellD->getValue() ?? '') === '3 DIGIT MANUFAKTUR') {
+            $sheet->setCellValue('D' . $headerRow->getRowIndex(), 'mnumber');
+        }
+    }
+
     // Iterasi melalui semua baris (mulai dari baris kedua)
     foreach ($sheet->getRowIterator(2) as $row) {
         $rowIndex = $row->getRowIndex();
