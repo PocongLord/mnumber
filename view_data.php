@@ -33,120 +33,164 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['insert_to_db'])) {
         die("Connection failed: " . $conn->connect_error);
     }
 
+    // Hapus semua data di tabel material dan tab_create sebelum memasukkan data baru
+    $conn->query("TRUNCATE TABLE material");
+    $conn->query("TRUNCATE TABLE tab_create");
+    $conn->query("TRUNCATE TABLE tab_uom");
+    $conn->query("TRUNCATE TABLE tab_purchasing");
+
+    // Periksa apakah query berhasil dijalankan
+    if ($conn->error) {
+        die("Failed to clear tables: " . $conn->error);
+    }
+
     $stmt = $conn->prepare(
         "INSERT INTO material (manufaktur, mnumber, old_material_number, material_description, material_group, external_material_group, material_type, uom, comp_code, keterangan, systodb) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        ON DUPLICATE KEY UPDATE 
-        manufaktur = VALUES(manufaktur),
-        old_material_number = VALUES(old_material_number),
-        material_description = VALUES(material_description),
-        material_group = VALUES(material_group),
-        external_material_group = VALUES(external_material_group),
-        material_type = VALUES(material_type),
-        uom = VALUES(uom),
-        comp_code = VALUES(comp_code),
-        keterangan = VALUES(keterangan)"
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())"
     );
-    
+
     if (!$stmt) {
         die("Prepare failed: " . $conn->error);
     }
-    
-    $duplicateMnumbers = []; // Menyimpan mnumber yang sudah ada
-    $duplicateMnumbersMessage = '';
 
-    // Loop untuk memasukkan data
-foreach (array_slice($data, 1) as $row) {
-    if (empty(trim($row['A'] ?? ''))) continue; // Lewati baris kosong
+    // Mulai proses loop untuk memasukkan data baru
+    foreach (array_slice($data, 1) as $row) {
+        if (empty(trim($row['A'] ?? ''))) continue; // Lewati baris kosong
 
-    // Ambil data dari kolom yang sesuai
-    $manufaktur = $row['C'] ?? '';
-    $mnumber = $row['D'] ?? '';
-    $old_material_number = $row['E'] ?? '';
-    $material_description = $row['F'] ?? '';
-    $material_group = $row['G'] ?? '';
-    $external_material_group = $row['H'] ?? '';
-    $material_type = $row['I'] ?? '';
-    $uom = $row['J'] ?? '';
-    $comp_code = $row['K'] ?? '';
-    $keterangan = $row['L'] ?? ''; // Ambil data dari kolom L
+        // Ambil data dari kolom yang sesuai
+        $manufaktur = $row['C'] ?? '';
+        $mnumber = $row['D'] ?? '';
+        $old_material_number = $row['E'] ?? '';
+        $material_description = $row['F'] ?? '';
+        $material_group = $row['G'] ?? '';
+        $external_material_group = $row['H'] ?? '';
+        $material_type = $row['I'] ?? '';
+        $uom = $row['J'] ?? '';
+        $comp_code = $row['K'] ?? '';
+        $keterangan = $row['L'] ?? ''; // Ambil data dari kolom L
 
-    // Cek apakah mnumber sudah ada di database
-    $checkStmt = $conn->prepare("SELECT COUNT(*) FROM material WHERE mnumber = ?");
-    $checkStmt->bind_param('s', $mnumber);
-    $checkStmt->execute();
-    $checkStmt->bind_result($count);
-    $checkStmt->fetch();
-    $checkStmt->close();
+        // Bind parameter untuk tabel material
+        $stmt->bind_param(
+            'ssssssssss',
+            $manufaktur,
+            $mnumber,
+            $old_material_number,
+            $material_description,
+            $material_group,
+            $external_material_group,
+            $material_type,
+            $uom,
+            $comp_code,
+            $keterangan
+        );
 
-    if ($count > 0) {
-        // Jika data sudah ada, simpan mnumber dan beri notifikasi
-        $duplicateMnumbers[] = $mnumber;
-        continue; // Lewati baris ini, tidak memasukkan ke database
-    }
+        if (!$stmt->execute()) {
+            echo "Error inserting row: " . $stmt->error . "<br>";
+        } else {
+            // Jika berhasil memasukkan ke tabel material, masukkan ke tabel tab_create
+            $tabCreateStmt = $conn->prepare(
+                "INSERT INTO tab_create (basic, mnumber, industry_sector, material_type, material_description, uom, material_group, old_material_number, gross_weight, net_weight, weight_unit)
+                VALUES ('X', ?, 'Z', ?, ?, ?, ?, ?, NULL, NULL, 'KG')"
+            );
 
-    // Bind parameter untuk tabel material
-    $stmt->bind_param(
-        'ssssssssss',
-        $manufaktur,
+            if (!$tabCreateStmt) {
+                echo "Prepare failed for tab_create: " . $conn->error . "<br>";
+                continue;
+            }
+
+            $tabCreateStmt->bind_param(
+                'ssssss', // 6 parameter sesuai query
+                $mnumber,
+                $material_type,
+                $material_description,
+                $uom,
+                $material_group,
+                $old_material_number
+            );
+
+            if (!$tabCreateStmt->execute()) {
+                echo "Error inserting into tab_create: " . $tabCreateStmt->error . "<br>";
+            }
+
+            $tabCreateStmt->close();
+        }
+
+        // Logika untuk insert ke tab_purchasing
+// Tentukan plant berdasarkan COMP CODE
+$plants = [];
+if ($comp_code === '0200') {
+    $plants = ['0201', '0202', '0203'];
+} elseif ($comp_code === '0100') {
+    $plants = ['0101', '0102', '0103'];
+}
+
+// Insert ke tabel tab_purchasing untuk setiap plant
+$tabPurchasingStmt = $conn->prepare(
+    "INSERT IGNORE INTO tab_purchasing (purchasing, mnumber, plant, comp_code, material_description, purchasing_group, purchasing_variable_active, purchasing_value_key) 
+    VALUES ('X', ?, ?, ?, ?, '000', '1', 'O000')"
+);
+
+if (!$tabPurchasingStmt) {
+    echo "Prepare failed for tab_purchasing: " . $conn->error . "<br>";
+    exit;
+}
+
+foreach ($plants as $plant) {
+    $tabPurchasingStmt->bind_param(
+        'ssss', // 4 parameter sesuai query, yang perlu diperbaiki
         $mnumber,
-        $old_material_number,
-        $material_description,
-        $material_group,
-        $external_material_group,
-        $material_type,
-        $uom,
+        $plant,
         $comp_code,
-        $keterangan
+        $material_description
     );
 
-    if (!$stmt->execute()) {
-        echo "Error inserting row: " . $stmt->error . "<br>";
-    } else {
-        // Jika berhasil memasukkan ke tabel material, masukkan ke tabel tab_create
-        $tabCreateStmt = $conn->prepare(
-            "INSERT INTO tab_create (basic, mnumber, industry_sector, material_type, material_description, uom, material_group, old_material_number, gross_weight, net_weight, weight_unit)
-            VALUES ('x', ?, 'Z', ?, ?, ?, ?, ?, NULL, NULL, 'KG')"
-        );
-
-        if (!$tabCreateStmt) {
-            echo "Prepare failed for tab_create: " . $conn->error . "<br>";
-            continue;
-        }
-        
-        $tabCreateStmt->bind_param(
-            'ssssss', // 6 parameter sesuai query
-            $mnumber,
-            $material_type,
-            $material_description,
-            $uom,
-            $material_group,
-            $old_material_number
-        );
-        
-        if (!$tabCreateStmt->execute()) {
-            echo "Error inserting into tab_create: " . $tabCreateStmt->error . "<br>";
-        }
-        
-        $tabCreateStmt->close();
-        
+    if (!$tabPurchasingStmt->execute()) {
+        echo "Error inserting into tab_purchasing: " . $tabPurchasingStmt->error . "<br>";
     }
 }
 
-    
-    // Menampilkan notifikasi jika ada data duplikat
-    if (count($duplicateMnumbers) > 0) {
-        $duplicateMnumbersMessage = "Ada data yang sudah pernah input: " . implode(', ', $duplicateMnumbers);
+$tabPurchasingStmt->close();
+
     }
-    
+
+    // Tambahkan logika untuk insert ke tabel tab_uom
+    $tabUomStmt = $conn->prepare(
+        "INSERT IGNORE INTO tab_uom (basic, mnumber, material_description, denominator, alternatif_uom, numerator, length, width, height, unit_dimension, volume, volume_unit) 
+         VALUES ('X', ?, ?, '1', ?, '1', NULL, NULL, NULL, NULL, NULL, NULL)"
+    );
+
+    if (!$tabUomStmt) {
+        die("Prepare failed for tab_uom: " . $conn->error);
+    }
+
+    // Proses loop untuk memasukkan data ke tab_uom
+    foreach (array_slice($data, 1) as $row) {
+        if (empty(trim($row['A'] ?? ''))) continue; // Lewati baris kosong
+
+        // Ambil data yang dibutuhkan dari kolom
+        $mnumber = $row['D'] ?? '';
+        $material_description = $row['F'] ?? '';
+        $alternatif_uom = $row['J'] ?? '';
+
+        // Bind parameter untuk tab_uom
+        $tabUomStmt->bind_param(
+            'sss', // 3 parameter sesuai query
+            $mnumber,
+            $material_description,
+            $alternatif_uom
+        );
+
+        if (!$tabUomStmt->execute()) {
+            echo "Error inserting into tab_uom: " . $tabUomStmt->error . "<br>";
+        }
+    }
+
+    // Tutup prepared statement
+    $tabUomStmt->close();
+
     $stmt->close();
     $conn->close();
-
-    if ($duplicateMnumbersMessage) {
-        echo "<div class='alert alert-warning'>{$duplicateMnumbersMessage}</div>";
-    } else {
-        echo "<div class='alert alert-success'>Data berhasil dimasukkan ke database.</div>";
-    }
+    echo "<div class='alert alert-success'>Data berhasil dimasukkan ke database.</div>";
 }
 ?>
 
@@ -188,37 +232,16 @@ foreach (array_slice($data, 1) as $row) {
                 </thead>
                 <tbody>
                     <?php
-                    // Koneksi ke database untuk pengecekan duplikat mnumber
-                    $conn = new mysqli('localhost', 'root', '', 'db_mnumber');
-                    if ($conn->connect_error) {
-                        die("Connection failed: " . $conn->connect_error);
-                    }
-
-                    // Ambil semua mnumber yang sudah ada di database
-                    $existingMnumbers = [];
-                    $result = $conn->query("SELECT mnumber FROM material");
-                    if ($result) {
-                        while ($row = $result->fetch_assoc()) {
-                            $existingMnumbers[] = $row['mnumber'];
-                        }
-                    }
-
-                    // Menampilkan data
-                    foreach (array_slice($data, 1) as $row): 
-                        $mnumber = $row['D'] ?? '';
-                        $rowClass = in_array($mnumber, $existingMnumbers) ? 'already-exists' : '';
-                    ?>
-                        <tr class="<?php echo $rowClass; ?>">
+                    // Tampilkan data dalam tabel
+                    foreach (array_slice($data, 1) as $row): ?>
+                        <tr>
                             <?php foreach ($row as $cell): ?>
                                 <td><?php echo htmlspecialchars($cell ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
                             <?php endforeach; ?>
                         </tr>
                     <?php endforeach; ?>
-
-                    <?php $conn->close(); ?>
                 </tbody>
             </table>
-            <!-- Tombol aksi -->
             <div class="d-flex justify-content-center gap-3">
                 <a href="index.html" class="btn btn-primary">Kembali ke Menu Utama</a>
                 <a href="processed_files/<?php echo basename($filePath); ?>" class="btn btn-success" download>Download Processed File</a>
@@ -226,6 +249,5 @@ foreach (array_slice($data, 1) as $row) {
             </div>
         </form>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
