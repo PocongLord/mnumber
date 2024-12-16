@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['insert_to_db'])) {
             $tabCreateStmt->close();
         }
 
-        // Logika untuk insert ke tab_purchasing
+       // Logika untuk insert ke tab_purchasing
 // Tentukan plant berdasarkan COMP CODE
 $plants = [];
 if ($comp_code === '0200') {
@@ -126,8 +126,8 @@ if ($comp_code === '0200') {
 
 // Insert ke tabel tab_purchasing untuk setiap plant
 $tabPurchasingStmt = $conn->prepare(
-    "INSERT IGNORE INTO tab_purchasing (purchasing, mnumber, plant, comp_code, material_description, purchasing_group, purchasing_variable_active, purchasing_value_key) 
-    VALUES ('X', ?, ?, ?, ?, '000', '1', 'O000')"
+    "INSERT IGNORE INTO tab_purchasing (mnumberplant, purchasing, mnumber, plant, comp_code, material_description, purchasing_group, purchasing_variable_active) 
+    VALUES (?, 'X', ?, ?, ?, ?, '000', '1')"
 );
 
 if (!$tabPurchasingStmt) {
@@ -135,21 +135,27 @@ if (!$tabPurchasingStmt) {
     exit;
 }
 
+// Proses loop untuk setiap plant
 foreach ($plants as $plant) {
+    // Gabungkan mnumber dan plant untuk mnumberplant
+    $mnumberplant = $mnumber . $plant;
+
+    // Lakukan bind_param dan execute untuk setiap plant
     $tabPurchasingStmt->bind_param(
-        'ssss', // 4 parameter sesuai query, yang perlu diperbaiki
-        $mnumber,
-        $plant,
-        $comp_code,
-        $material_description
+        'sssss', // Format string untuk 5 parameter
+        $mnumberplant,  // mnumberplant (gabungan mnumber dan plant)
+        $mnumber,       // mnumber
+        $plant,         // plant
+        $comp_code,     // comp_code
+        $material_description // material_description
     );
 
     if (!$tabPurchasingStmt->execute()) {
         echo "Error inserting into tab_purchasing: " . $tabPurchasingStmt->error . "<br>";
     }
 }
-
 $tabPurchasingStmt->close();
+
 
     }
 
