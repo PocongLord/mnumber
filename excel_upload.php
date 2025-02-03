@@ -21,6 +21,8 @@ function generateMaterialNumber($cellC, $cellE)
         $prefixC = 'MLF';  
     } elseif (stripos($cellC, 'Manitau') !== false) {  
         $prefixC = 'MAT';  
+    } elseif (stripos($cellC, 'Manitou') !== false) {  
+        $prefixC = 'MAT';  
     } else {  
         $prefixC = substr(strtoupper($cellC), 0, 3);  
     }  
